@@ -87,8 +87,36 @@ with tab1:
     - `monto` (positivo = ingreso, negativo = egreso, o usar columna tipo)
     - `tipificacion` (opcional)
     """)
-    
-    uploaded = st.file_uploader("Sube el CSV de movimientos", type=["csv"])
+
+    col_up, col_ej = st.columns(2)
+    with col_up:
+        uploaded = st.file_uploader("Sube el CSV de movimientos", type=["csv"])
+    with col_ej:
+        st.write("")
+        st.write("")
+        if st.button("📥 Cargar CSV de ejemplo", type="primary"):
+            try:
+                df_ej = pd.read_csv("ejemplo_movimientos.csv")
+                conn = get_conn()
+                cols = {c.lower().strip(): c for c in df_ej.columns}
+                for _, row in df_ej.iterrows():
+                    fecha = str(row.get(cols.get('fecha', 'fecha'), ''))[:10]
+                    cuenta = str(row.get(cols.get('cuenta', 'cuenta'), ''))
+                    concepto = str(row.get(cols.get('concepto', 'concepto'), ''))
+                    monto = float(row.get(cols.get('monto', 'monto'), 0) or 0)
+                    tip = str(row.get(cols.get('tipificacion', 'tipificacion'), ''))
+                    tipo = "ingreso" if monto >= 0 else "egreso"
+                    conn.execute(
+                        "INSERT INTO movimientos (fecha, cuenta, concepto, monto, tipificacion, tipo) VALUES (?,?,?,?,?,?)",
+                        (fecha, cuenta, concepto, monto, tip, tipo)
+                    )
+                conn.commit()
+                conn.close()
+                st.success(f"Importados {len(df_ej)} movimientos de ejemplo")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al cargar ejemplo: {e}")
+
     if uploaded:
         try:
             df = pd.read_csv(uploaded, sep=None, engine='python')
